@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="DTOs\**" />
+    <EmbeddedResource Remove="DTOs\**" />
+    <None Remove="DTOs\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.2.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ScannerKeyHunt.Data\ScannerKeyHunt.Data.csproj" />
+    <ProjectReference Include="..\ScannerKeyHunt.RepositoryCache\ScannerKeyHunt.RepositoryCache.csproj" />
+    <ProjectReference Include="..\ScannerKeyHunt.Utils\ScannerKeyHunt.Utils.csproj" />
+  </ItemGroup>
+
+</Project>

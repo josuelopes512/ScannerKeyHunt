@@ -1,0 +1,21 @@
+﻿################################################################################
+# Este arquivo .gitignore foi criado automaticamente pelo Microsoft(R) Visual Studio.
+################################################################################
+
+/Common/ScannerKeyHunt.Application/obj
+/Common/ScannerKeyHunt.Application/bin
+/.vs
+/Common/ScannerKeyHunt.Data/bin/Debug
+/Common/ScannerKeyHunt.Domain/bin
+/Common/ScannerKeyHunt.Domain/obj
+/Common/ScannerKeyHunt.IoC/bin/Debug/net8.0
+/Common/ScannerKeyHunt.IoC/obj
+/Common/ScannerKeyHunt.Repository/bin/Debug
+/Common/ScannerKeyHunt.Repository/obj
+/Common/ScannerKeyHunt.RepositoryCache/bin
+/Common/ScannerKeyHunt.RepositoryCache/obj
+/Common/ScannerKeyHunt.Utils/bin
+/Common/ScannerKeyHunt.Utils/obj
+/ScannerKeyHunt/bin/Debug/net8.0
+/ScannerKeyHunt/obj
+/ScannerKeyHunt/Properties
