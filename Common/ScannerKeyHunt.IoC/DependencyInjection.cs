@@ -34,6 +34,9 @@ namespace ScannerKeyHunt.IoC
 
             GetSeedUserRoleInitial(seedUserRoleInitial);
 
+            ISectionService sectionService = services.BuildServiceProvider().GetService<ISectionService>();
+            sectionService.GenerateSections();
+
             return services;
         }
 
@@ -283,6 +286,7 @@ namespace ScannerKeyHunt.IoC
             services.AddScoped<IEmailService, EmailService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ISectionService, SectionService>();
 
             services.AddScoped<ScannerKeyHunt.Domain.Interfaces.IEmailSender, EmailSender>();
             services.AddScoped<ISeedUserRoleInitial, SeedUserRoleInitial>();

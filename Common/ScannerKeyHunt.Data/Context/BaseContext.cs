@@ -14,6 +14,11 @@ namespace ScannerKeyHunt.Data.Context
         public BaseContext(DbContextOptions<BaseContext> options) : base(options) { }
 
         public DbSet<TokenAuth>? TokenAuths { get; set; }
+        //public DbSet<Wallet>? Wallets { get; set; }
+        public DbSet<PuzzleWallet>? PuzzleWallets { get; set; }
+        public DbSet<Block>? Blocks { get; set; }
+        public DbSet<Area>? Areas { get; set; }
+        public DbSet<Section>? Sections { get; set; }
 
         protected virtual void InitalizeContext()
         {
@@ -34,6 +39,10 @@ namespace ScannerKeyHunt.Data.Context
             //});
 
             base.OnModelCreating(modelBuilder);
+
+            //modelBuilder.Entity<Wallet>()
+            //    .HasIndex(w => w.Address)
+            //    .IsUnique(); // Garantir que o endereço seja único.
         }
     }
 }

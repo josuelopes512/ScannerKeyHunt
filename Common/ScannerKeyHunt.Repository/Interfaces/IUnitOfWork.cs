@@ -11,6 +11,10 @@ namespace ScannerKeyHunt.Repository.Interfaces
         IUserStoreRepository UserStoreRepository { get; }
         IUserRepositoryCache UserRepository { get; }
         ITokenAuthRepositoryCache TokenAuthRepository { get; }
+        IBlockRepositoryCache BlockRepository { get; }
+        IAreaRepositoryCache AreaRepository { get; }
+        ISectionRepositoryCache SectionRepository { get; }
+        IPuzzleWalletCache PuzzleWalletCache { get; }
         BaseContext GetBaseContext();
         void Save();
         void Commit();

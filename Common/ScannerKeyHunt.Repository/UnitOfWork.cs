@@ -23,8 +23,10 @@ namespace ScannerKeyHunt.Repository
         private IUserIdentityRepository _userIdentityRepository;
         private IUserRepositoryCache _userRepository;
         private ITokenAuthRepositoryCache _tokenAuthRepositoryCache;
-
-
+        private IBlockRepositoryCache _blockRepositoryCache;
+        private IAreaRepositoryCache _areaRepositoryCache;
+        private ISectionRepositoryCache _sectionRepositoryCache;
+        private IPuzzleWalletCache _puzzleWalletCache;
         private readonly ILogger<UnitOfWork> _logger;
 
         public UnitOfWork(
@@ -73,6 +75,58 @@ namespace ScannerKeyHunt.Repository
                 }
 
                 return _tokenAuthRepositoryCache;
+            }
+        }
+
+        public IBlockRepositoryCache BlockRepository
+        {
+            get
+            {
+                if (_blockRepositoryCache == null)
+                {
+                    _blockRepositoryCache = new BlockRepositoryCache(_context, _cacheService);
+                }
+
+                return _blockRepositoryCache;
+            }
+        }
+
+        public IAreaRepositoryCache AreaRepository
+        {
+            get
+            {
+                if (_areaRepositoryCache == null)
+                {
+                    _areaRepositoryCache = new AreaRepositoryCache(_context, _cacheService);
+                }
+
+                return _areaRepositoryCache;
+            }
+        }
+
+        public ISectionRepositoryCache SectionRepository
+        {
+            get
+            {
+                if (_sectionRepositoryCache == null)
+                {
+                    _sectionRepositoryCache = new SectionRepositoryCache(_context, _cacheService);
+                }
+
+                return _sectionRepositoryCache;
+            }
+        }
+
+        public IPuzzleWalletCache PuzzleWalletCache
+        {
+            get
+            {
+                if (_puzzleWalletCache == null)
+                {
+                    _puzzleWalletCache = new PuzzleWalletCache(_context, _cacheService);
+                }
+
+                return _puzzleWalletCache;
             }
         }
 
