@@ -116,6 +116,20 @@ namespace ScannerKeyHunt.Repository.Cache.BaseCache
             return function();
         }
 
+        public bool Exists(long id, bool useCache = true)
+        {
+            Func<bool> function = () => _baseRepository.Exists(id);
+
+            if (useCache && ConfigHelper.UseCache)
+            {
+                string key = GenerateKey(id.ToString());
+
+                return _cacheService.GetOrSet(key, function, TimeSpan.FromMinutes(CacheDurationMinutes));
+            }
+
+            return function();
+        }
+
         public bool Exists(Predicate<TEntity> predicate, bool useCache = true)
         {
             return _baseRepository.Exists(predicate);
@@ -128,6 +142,20 @@ namespace ScannerKeyHunt.Repository.Cache.BaseCache
             if (useCache && ConfigHelper.UseCache)
             {
                 string key = GenerateKey(guid.ToString());
+
+                return _cacheService.GetOrSet(key, function, TimeSpan.FromMinutes(CacheDurationMinutes));
+            }
+
+            return function();
+        }
+
+        public TEntity GetById(long id, bool useCache = true)
+        {
+            Func<TEntity> function = () => _baseRepository.GetById(id);
+
+            if (useCache && ConfigHelper.UseCache)
+            {
+                string key = GenerateKey(id.ToString());
 
                 return _cacheService.GetOrSet(key, function, TimeSpan.FromMinutes(CacheDurationMinutes));
             }
@@ -162,9 +190,22 @@ namespace ScannerKeyHunt.Repository.Cache.BaseCache
             _baseRepository.Update(guid, entity);
         }
 
+        public void Update(long id, TEntity entity)
+        {
+            if (ConfigHelper.UseCache)
+                ResetCache(entity);
+
+            _baseRepository.Update(id, entity);
+        }
+
         public void Delete(Guid guid)
         {
             _baseRepository.Delete(guid);
+        }
+
+        public void Delete(long id)
+        {
+            _baseRepository.Delete(id);
         }
 
         public void Delete(TEntity entity)
@@ -183,6 +224,14 @@ namespace ScannerKeyHunt.Repository.Cache.BaseCache
             _baseRepository.Delete(guid, entity);
         }
 
+        public void Delete(long id, TEntity entity)
+        {
+            if (ConfigHelper.UseCache)
+                ResetCache(entity);
+
+            _baseRepository.Delete(id, entity);
+        }
+
         public void Remove(TEntity entity)
         {
             if (ConfigHelper.UseCache)
@@ -193,14 +242,20 @@ namespace ScannerKeyHunt.Repository.Cache.BaseCache
 
         public void ResetCache(TEntity entity)
         {
-            Guid guid = (Guid)entity.GetType().GetProperty("Id").GetValue(entity);
+            long id = (long)entity.GetType().GetProperty("Id").GetValue(entity);
+            //Guid guid = (Guid)entity.GetType().GetProperty("Id").GetValue(entity);
 
-            ResetByGuid<TEntity>(guid);
+            ResetById<TEntity>(id);
         }
 
         private void ResetByGuid<T>(Guid guid)
         {
             _cacheService.Remove<T>(GenerateKey(guid.ToString()));
+        }
+
+        private void ResetById<T>(long id)
+        {
+            _cacheService.Remove<T>(GenerateKey(id.ToString()));
         }
 
         public void BulkUpdate(List<TEntity> entities, bool isDeletion = false)

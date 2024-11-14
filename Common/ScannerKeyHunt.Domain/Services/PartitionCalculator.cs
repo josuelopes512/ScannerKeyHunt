@@ -12,9 +12,9 @@ namespace ScannerKeyHunt.Domain.Services
         private readonly BigInteger stopKey;
         private readonly BigInteger intervalTotal;
 
-        private int numSections = 1024;
-        private int areasPerSection = 64;
-        private int blocksPerArea = 16;
+        private const int numSections = 1024;
+        private const int areasPerSection = 64;
+        private const int blocksPerArea = 16;
 
         private readonly PuzzleWallet _puzzleWallet;
         private readonly IUnitOfWork _unitOfWork;
@@ -27,39 +27,7 @@ namespace ScannerKeyHunt.Domain.Services
             _puzzleWallet = puzzleWallet;
             _unitOfWork = unitOfWork;
 
-            AdjustPartitionSizes();
-        }
-
-        private void AdjustPartitionSizes()
-        {
-            // Se o intervalo total for menor que o esperado para o número de seções
-            if (startKey == stopKey)
-            {
-                numSections = 1;
-                areasPerSection = 1;
-                blocksPerArea = 1;
-                return;
-            }
-            
-            if (intervalTotal < numSections)
-            {
-                numSections = (int)intervalTotal; // Ajustar para o número mínimo de seções
-            }
-
-            // Se o intervalo total for menor que o esperado para as áreas por seção
-            BigInteger totalAreaInterval = intervalTotal / numSections;
-
-            if (totalAreaInterval < areasPerSection)
-            {
-                areasPerSection = (int)totalAreaInterval; // Ajustar para o número mínimo de áreas
-            }
-
-            // Se o intervalo total for menor que o esperado para os blocos por área
-            BigInteger totalBlockInterval = totalAreaInterval / areasPerSection;
-            if (totalBlockInterval < blocksPerArea)
-            {
-                blocksPerArea = (int)totalBlockInterval; // Ajustar para o número mínimo de blocos
-            }
+            //AdjustPartitionSizes();
         }
 
         private static string BigIntToHex(BigInteger bigInt)
@@ -78,80 +46,101 @@ namespace ScannerKeyHunt.Domain.Services
             return hex.PadLeft(64, '0');
         }
 
-        public List<Section> GenerateSections()
+        public static BigInteger HexToBigInteger(string hex)
+        {
+            if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                hex = hex.Substring(2);
+            }
+
+            return BigInteger.Parse("0" + hex, System.Globalization.NumberStyles.HexNumber);
+        }
+
+        public List<Section> DividirRange(int maxSetores = numSections, int maxAreas = areasPerSection, int maxBlocos = blocksPerArea)
         {
             List<Section> sections = new List<Section>();
+            List<Area> areas = new List<Area>();
+            List<Block> blocos = new List<Block>();
 
-            BigInteger intervalPerSection = intervalTotal / numSections;
-            BigInteger intervalPerArea = intervalPerSection / areasPerSection;
-            BigInteger intervalPerBlock = intervalPerArea / blocksPerArea;
+            BigInteger inicioRange = startKey; // HexToBigInteger(inicioHex);
+            BigInteger fimRange = stopKey; // HexToBigInteger(fimHex);
 
-            BigInteger currentKey = startKey;
+            BigInteger totalValores = fimRange - inicioRange + 1;
 
-            for (int s = 0; s < numSections; s++)
+            BigInteger valoresPorBloco = BigInteger.Max(totalValores / (maxSetores * maxAreas * maxBlocos), 1);
+            BigInteger valoresPorArea = BigInteger.Max(valoresPorBloco * maxBlocos, 1);
+            BigInteger valoresPorSetor = BigInteger.Max(valoresPorArea * maxAreas, 1);
+
+            // Divide o range em setores, áreas e blocos
+            for (int s = 0; s < maxSetores; s++)
             {
-                BigInteger sectionEndKey = currentKey + intervalPerSection - 1;
+                BigInteger setorInicio = inicioRange + (s * valoresPorSetor);
+                BigInteger setorFim = BigInteger.Min(setorInicio + valoresPorSetor - 1, fimRange);
 
                 Section section = new Section
                 {
                     PuzzleWalletId = _puzzleWallet.Id,
-                    StartKey = BigIntToHex(currentKey),
-                    EndKey = BigIntToHex(sectionEndKey),
+                    StartKey = BigIntToHex(setorInicio),
+                    EndKey = BigIntToHex(setorFim),
                     IsCompleted = false,
                     Disabled = false,
                     IsLocked = false,
                     Seed = Guid.NewGuid().ToString()
                 };
 
-                _unitOfWork.SectionRepository.Add(section);
+                sections.Add(section);
 
-                BigInteger areaKey = currentKey;
+                //_unitOfWork.SectionRepository.Add(section);
 
-                for (int a = 0; a < areasPerSection; a++)
+                for (int a = 0; a < maxAreas; a++)
                 {
-                    BigInteger areaEndKey = areaKey + intervalPerArea - 1;
+                    BigInteger areaInicio = setorInicio + (a * valoresPorArea);
+                    BigInteger areaFim = BigInteger.Min(areaInicio + valoresPorArea - 1, fimRange);
 
                     Area area = new Area
                     {
-                        StartKey = BigIntToHex(areaKey),
-                        EndKey = BigIntToHex(areaEndKey),
+                        SectionId = section.Id,
+                        Section = section,
+                        StartKey = BigIntToHex(areaInicio),
+                        EndKey = BigIntToHex(areaFim),
                         IsCompleted = false,
                         Disabled = false,
                         IsLocked = false,
                         Seed = Guid.NewGuid().ToString()
                     };
 
-                    _unitOfWork.AreaRepository.Add(area);
+                    areas.Add(area);
 
-                    BigInteger blockKey = areaKey;
-                    for (int b = 0; b < blocksPerArea; b++)
+                    for (int b = 0; b < maxBlocos; b++)
                     {
-                        BigInteger blockEndKey = blockKey + intervalPerBlock - 1;
+                        BigInteger blocoInicio = areaInicio + (b * valoresPorBloco);
+                        BigInteger blocoFim = BigInteger.Min(blocoInicio + valoresPorBloco - 1, fimRange);
 
                         Block block = new Block
                         {
-                            StartKey = BigIntToHex(blockKey),
-                            EndKey = BigIntToHex(blockEndKey),
+                            AreaId = area.Id,
+                            Area = area,
+                            StartKey = BigIntToHex(blocoInicio),
+                            EndKey = BigIntToHex(blocoFim),
                             IsCompleted = false,
                             Disabled = false,
                             IsLocked = false,
                             Seed = Guid.NewGuid().ToString()
                         };
 
-                        _unitOfWork.BlockRepository.Add(block);
+                        blocos.Add(block);
 
-                        //area.Blocks.Add(block);
-                        blockKey += intervalPerBlock;
+                        if (blocoFim >= fimRange) break;
                     }
-
-                    //section.Areas.Add(area);
-                    areaKey += intervalPerArea;
+                    if (areaFim >= fimRange) break;
                 }
 
-                sections.Add(section);
-                currentKey += intervalPerSection;
+                if (setorFim >= fimRange) break;
             }
 
+            _unitOfWork.SectionRepository.AddRange(sections);
+            _unitOfWork.AreaRepository.AddRange(areas);
+            _unitOfWork.BlockRepository.AddRange(blocos);
 
             _unitOfWork.Save();
 

@@ -5,7 +5,7 @@ namespace ScannerKeyHunt.Data.Entities
     public class Section : BaseModel
     {
         [ForeignKey("PuzzleWallet")]
-        public virtual Guid PuzzleWalletId { get; set; }
+        public virtual long PuzzleWalletId { get; set; }
         public PuzzleWallet PuzzleWallet { get; set; }
         public bool IsLocked { get; set; }
         public bool Disabled { get; set; }

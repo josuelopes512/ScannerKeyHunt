@@ -2,6 +2,7 @@
 using ScannerKeyHunt.Data.Helpers;
 using ScannerKeyHunt.Repository.Interfaces.Cache;
 using ScannerKeyHunt.Repository.Repository.BaseRepository;
+using System;
 using System.Linq.Expressions;
 
 namespace ScannerKeyHunt.Repository.Cache.BaseCache
@@ -198,6 +199,63 @@ namespace ScannerKeyHunt.Repository.Cache.BaseCache
         public void BulkUpdate(List<TEntity> entities, bool isDeletion = false)
         {
             _baseRepository.BulkUpdate(entities, isDeletion);
+        }
+
+        public TEntity GetById(long id, bool useCache = false)
+        {
+            Func<TEntity> function = () => _baseRepository.GetById(id);
+
+            if (useCache && ConfigHelper.UseCache)
+            {
+                string key = GenerateKey("GetById", id.ToString());
+
+                return GetOrSet(key, function, CacheDurationMinutes);
+            }
+
+            return function();
+        }
+
+        public void Update(long id, TEntity entity)
+        {
+            if (ConfigHelper.UseCache)
+                ResetCache(GenerateKey("GetById", id.ToString()));
+
+            _baseRepository.Update(id, entity);
+        }
+
+        public void Delete(long id)
+        {
+            if (ConfigHelper.UseCache)
+                ResetCache(GenerateKey("GetById", id.ToString()));
+
+            _baseRepository.Delete(id);
+        }
+
+        public void Delete(long id, TEntity entity)
+        {
+            if (ConfigHelper.UseCache)
+                ResetCache(GenerateKey("GetById", entity.ToString()));
+
+            _baseRepository.Delete(id, entity);
+        }
+
+        public bool Exists(long id)
+        {
+            return _baseRepository.Exists(id);
+        }
+
+        public TEntity GetById(long id)
+        {
+            Func<TEntity> function = () => _baseRepository.GetById(id);
+
+            if (ConfigHelper.UseCache)
+            {
+                string key = GenerateKey("GetById", id.ToString());
+
+                return GetOrSet(key, function, CacheDurationMinutes);
+            }
+
+            return function();
         }
 
         public void Dispose()

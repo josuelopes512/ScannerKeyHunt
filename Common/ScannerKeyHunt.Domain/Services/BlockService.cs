@@ -13,7 +13,7 @@ namespace ScannerKeyHunt.Domain.Services
             return "0x" + BitConverter.ToString(buffer).Replace("-", "");
         }
 
-        public Block CreateBlock(Guid areaId, string startKey, string endKey)
+        public Block CreateBlock(long areaId, string startKey, string endKey)
         {
             Block newBlock = new Block
             {

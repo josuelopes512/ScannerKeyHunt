@@ -146,5 +146,30 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
         {
             throw new NotImplementedException();
         }
+
+        public TEntity GetById(long id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Update(long id, TEntity entity)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Delete(long id)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Delete(long id, TEntity entity)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool Exists(long id)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

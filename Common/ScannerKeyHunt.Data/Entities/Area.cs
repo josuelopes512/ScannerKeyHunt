@@ -5,7 +5,7 @@ namespace ScannerKeyHunt.Data.Entities
     public class Area : BaseModel
     {
         [ForeignKey("Section")]
-        public virtual Guid SectionId { get; set; }
+        public virtual long SectionId { get; set; }
         public Section Section { get; set; }
         public bool IsLocked { get; set; }
         public bool Disabled { get; set; }

@@ -30,7 +30,7 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
 
         public virtual void Add(TEntity entity)
         {
-            typeof(TEntity).GetProperty("Id").SetValue(entity, Guid.NewGuid());
+            //typeof(TEntity).GetProperty("Id").SetValue(entity, Guid.NewGuid());
             typeof(TEntity).GetProperty("CreationDate").SetValue(entity, DateTime.UtcNow);
             typeof(TEntity).GetProperty("UpdateDate").SetValue(entity, DateTime.UtcNow);
 
@@ -40,18 +40,23 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
         public void AddRange(IEnumerable<TEntity> entities)
         {
             DateTime currentTime = DateTime.UtcNow;
-            PropertyInfo? idProperty = typeof(TEntity).GetProperty("Id");
+            //PropertyInfo? idProperty = typeof(TEntity).GetProperty("Id");
             PropertyInfo? creationDateProperty = typeof(TEntity).GetProperty("CreationDate");
             PropertyInfo? updateDateProperty = typeof(TEntity).GetProperty("UpdateDate");
 
             foreach (var entity in entities)
             {
-                idProperty.SetValue(entity, Guid.NewGuid());
-                creationDateProperty.SetValue(entity, currentTime);
-                updateDateProperty.SetValue(entity, currentTime);
+                //if (idProperty?.GetValue(entity) == null)
+                //    idProperty.SetValue(entity, Guid.NewGuid());
+
+                if (creationDateProperty?.GetValue(entity) == null)
+                    creationDateProperty.SetValue(entity, currentTime);
+
+                if (updateDateProperty?.GetValue(entity) == null)
+                    updateDateProperty.SetValue(entity, currentTime);
             }
 
-            _dbSet.AddRange(entities);
+            _context.BulkInsert(entities);
         }
 
         public List<TEntity> GetAll()
@@ -123,6 +128,18 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
             try
             {
                 return _dbSet.AsEnumerable().Where(e => (Guid)e.GetType().GetProperty("Id").GetValue(e) == guid && e.GetType().GetProperty("DeletionDate").GetValue(e) == null).FirstOrDefault();
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public TEntity GetById(long id)
+        {
+            try
+            {
+                return _dbSet.AsEnumerable().Where(e => (long)e.GetType().GetProperty("Id").GetValue(e) == id && e.GetType().GetProperty("DeletionDate").GetValue(e) == null).FirstOrDefault();
             }
             catch (Exception)
             {
@@ -303,6 +320,57 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
             }
         }
 
+        public void Update(long id, TEntity entity)
+        {
+            try
+            {
+                TEntity existingEntity = GetById(id);
+
+                if (existingEntity != null)
+                {
+                    foreach (var property in typeof(TEntity).GetProperties())
+                    {
+                        if (property.Name.Equals("UpdateDate"))
+                            property.SetValue(existingEntity, DateTime.UtcNow);
+
+                        else if (property.Name.Equals("CreationDate"))
+                            continue;
+
+                        else if (property.Name != "Id")
+                            property.SetValue(existingEntity, property.GetValue(entity));
+                    }
+
+                    _context.Entry(existingEntity).State = EntityState.Modified;
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public void Delete(long id)
+        {
+            try
+            {
+                TEntity existingEntity = GetById(id);
+
+                bool isDeleted = existingEntity.GetType().GetProperty("DeletionDate").GetValue(existingEntity) == null;
+
+                if (existingEntity != null && isDeleted)
+                {
+                    typeof(TEntity).GetProperty("DeletionDate").SetValue(existingEntity, DateTime.UtcNow);
+                    typeof(TEntity).GetProperty("UpdateDate").SetValue(existingEntity, DateTime.UtcNow);
+
+                    _context.Entry(existingEntity).State = EntityState.Modified;
+                }
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
         public virtual void Delete(TEntity entity)
         {
             try
@@ -325,6 +393,21 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
                     throw new Exception("UUID value is different from entity uuid value");
 
                 Delete(guid);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public void Delete(long id, TEntity entity)
+        {
+            try
+            {
+                if (!entity.GetType().GetProperty("Id").GetValue(entity).Equals(id))
+                    throw new Exception("UUID value is different from entity uuid value");
+
+                Delete(id);
             }
             catch (Exception)
             {
@@ -399,7 +482,8 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
             {
                 List<TEntity> batch = entities.Skip(i).Take(batchSize).ToList();
 
-                List<SqlParameter> idParameters = batch.Select((x, index) => new SqlParameter($"@id{index}", (Guid)x.GetType().GetProperty("Id").GetValue(x))).ToList();
+                //List<SqlParameter> idParameters = batch.Select((x, index) => new SqlParameter($"@id{index}", (Guid)x.GetType().GetProperty("Id").GetValue(x))).ToList();
+                List<SqlParameter> idParameters = batch.Select((x, index) => new SqlParameter($"@id{index}", (long)x.GetType().GetProperty("Id").GetValue(x))).ToList();
 
                 batches.Add((idParameters.ToArray(), sqlParameters.ToArray()));
             }
@@ -428,6 +512,19 @@ namespace ScannerKeyHunt.Repository.Repository.BaseRepository
             {
                 return _dbSet.AsNoTracking()
                     .Any(e => (Guid)e.GetType().GetProperty("Id").GetValue(e) == guid);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public bool Exists(long id)
+        {
+            try
+            {
+                return _dbSet.AsNoTracking()
+                    .Any(e => (long)e.GetType().GetProperty("Id").GetValue(e) == id);
             }
             catch (Exception)
             {

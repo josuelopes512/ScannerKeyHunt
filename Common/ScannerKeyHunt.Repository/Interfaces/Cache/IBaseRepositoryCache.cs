@@ -10,6 +10,7 @@ namespace ScannerKeyHunt.Repository.Interfaces.Cache
         List<TEntity> GetAll(Predicate<TEntity> predicate);
         List<TEntity> GetAllDeleted();
         TEntity GetByGuid(Guid guid, bool useCache = true);
+        TEntity GetById(long id, bool useCache = true);
         TEntity GetByExpressionBool(Expression<Func<TEntity, bool>> predicate);
         int GetCount();
         List<TEntity> GetPages<Tipo>(Predicate<TEntity> predicate, int numPage, int qtdRegs) where Tipo : class;
@@ -19,11 +20,15 @@ namespace ScannerKeyHunt.Repository.Interfaces.Cache
         void Update(TEntity entity);
         void Update(Guid guid, TEntity entity);
         void Delete(Guid guid);
+        void Update(long id, TEntity entity);
+        void Delete(long id);
         void Delete(TEntity entity);
         void Delete(Guid guid, TEntity entity);
+        void Delete(long id, TEntity entity);
         void Remove(TEntity entity);
         IEnumerable<TEntity> GetWithRawSql(string query, params object[] parameters);
         bool Exists(Guid guid, bool useCache = true);
+        bool Exists(long id, bool useCache = true);
         bool Exists(Predicate<TEntity> predicate, bool useCache = true);
         void BulkUpdate(List<TEntity> entities, bool isDeletion = false);
         List<TEntity> GetAll(Guid userId);

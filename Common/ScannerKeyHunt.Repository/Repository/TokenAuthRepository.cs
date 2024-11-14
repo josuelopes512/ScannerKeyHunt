@@ -19,8 +19,6 @@ namespace ScannerKeyHunt.Repository.Repository
         {
             try
             {
-                entity.Id = Guid.NewGuid();
-
                 object[] sqlParameters = new object[]
                 {
                     new SqlParameter("@paramId", entity.Id),
