@@ -12,8 +12,8 @@ using ScannerKeyHunt.Data.Context;
 namespace ScannerKeyHunt.Data.Migrations
 {
     [DbContext(typeof(BaseContext))]
-    [Migration("20241114003010_LastKeyNullable")]
-    partial class LastKeyNullable
+    [Migration("20241114021641_UpdateGuidToIdKey")]
+    partial class UpdateGuidToIdKey
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -160,9 +160,11 @@ namespace ScannerKeyHunt.Data.Migrations
 
             modelBuilder.Entity("ScannerKeyHunt.Data.Entities.Area", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("datetime2");
@@ -186,8 +188,8 @@ namespace ScannerKeyHunt.Data.Migrations
                     b.Property<bool>("IsLocked")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("SectionId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<long>("SectionId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Seed")
                         .IsRequired()
@@ -212,12 +214,14 @@ namespace ScannerKeyHunt.Data.Migrations
 
             modelBuilder.Entity("ScannerKeyHunt.Data.Entities.Block", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("bigint");
 
-                    b.Property<Guid>("AreaId")
-                        .HasColumnType("uniqueidentifier");
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("AreaId")
+                        .HasColumnType("bigint");
 
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("datetime2");
@@ -267,9 +271,11 @@ namespace ScannerKeyHunt.Data.Migrations
 
             modelBuilder.Entity("ScannerKeyHunt.Data.Entities.PuzzleWallet", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<string>("Address")
                         .IsRequired()
@@ -321,9 +327,11 @@ namespace ScannerKeyHunt.Data.Migrations
 
             modelBuilder.Entity("ScannerKeyHunt.Data.Entities.Section", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("datetime2");
@@ -347,8 +355,8 @@ namespace ScannerKeyHunt.Data.Migrations
                     b.Property<bool>("IsLocked")
                         .HasColumnType("bit");
 
-                    b.Property<Guid>("PuzzleWalletId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<long>("PuzzleWalletId")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("Seed")
                         .IsRequired()
@@ -373,9 +381,11 @@ namespace ScannerKeyHunt.Data.Migrations
 
             modelBuilder.Entity("ScannerKeyHunt.Data.Entities.TokenAuth", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<long>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("bigint");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
 
                     b.Property<DateTime>("CreationDate")
                         .HasColumnType("datetime2");

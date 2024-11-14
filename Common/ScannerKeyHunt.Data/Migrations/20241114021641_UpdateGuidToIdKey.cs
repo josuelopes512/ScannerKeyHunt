@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ScannerKeyHunt.Data.Migrations
 {
     /// <inheritdoc />
-    public partial class FirstMigration : Migration
+    public partial class UpdateGuidToIdKey : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -58,16 +58,19 @@ namespace ScannerKeyHunt.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Sections",
+                name: "PuzzleWallets",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    StartKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EndKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PrivateKey = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Address = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    PuzzleId = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     IsLocked = table.Column<bool>(type: "bit", nullable: false),
                     Disabled = table.Column<bool>(type: "bit", nullable: false),
                     IsCompleted = table.Column<bool>(type: "bit", nullable: false),
-                    StartKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    EndKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Seed = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdateDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     DeletionDate = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -76,14 +79,15 @@ namespace ScannerKeyHunt.Data.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Sections", x => x.Id);
+                    table.PrimaryKey("PK_PuzzleWallets", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
                 name: "TokenAuths",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     RefreshToken = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     IsActive = table.Column<bool>(type: "bit", nullable: false),
@@ -206,11 +210,42 @@ namespace ScannerKeyHunt.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Sections",
+                columns: table => new
+                {
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PuzzleWalletId = table.Column<long>(type: "bigint", nullable: false),
+                    IsLocked = table.Column<bool>(type: "bit", nullable: false),
+                    Disabled = table.Column<bool>(type: "bit", nullable: false),
+                    IsCompleted = table.Column<bool>(type: "bit", nullable: false),
+                    StartKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    EndKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Seed = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdateDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    DeletionDate = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    CreationUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UpdateUserId = table.Column<Guid>(type: "uniqueidentifier", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Sections", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Sections_PuzzleWallets_PuzzleWalletId",
+                        column: x => x.PuzzleWalletId,
+                        principalTable: "PuzzleWallets",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Areas",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    SectionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    SectionId = table.Column<long>(type: "bigint", nullable: false),
                     IsLocked = table.Column<bool>(type: "bit", nullable: false),
                     Disabled = table.Column<bool>(type: "bit", nullable: false),
                     IsCompleted = table.Column<bool>(type: "bit", nullable: false),
@@ -238,14 +273,15 @@ namespace ScannerKeyHunt.Data.Migrations
                 name: "Blocks",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    AreaId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Id = table.Column<long>(type: "bigint", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    AreaId = table.Column<long>(type: "bigint", nullable: false),
                     IsLocked = table.Column<bool>(type: "bit", nullable: false),
                     Disabled = table.Column<bool>(type: "bit", nullable: false),
                     IsCompleted = table.Column<bool>(type: "bit", nullable: false),
                     StartKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     EndKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    LastKey = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    LastKey = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Seed = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     CreationDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdateDate = table.Column<DateTime>(type: "datetime2", nullable: false),
@@ -312,6 +348,11 @@ namespace ScannerKeyHunt.Data.Migrations
                 name: "IX_Blocks_AreaId",
                 table: "Blocks",
                 column: "AreaId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Sections_PuzzleWalletId",
+                table: "Sections",
+                column: "PuzzleWalletId");
         }
 
         /// <inheritdoc />
@@ -349,6 +390,9 @@ namespace ScannerKeyHunt.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "Sections");
+
+            migrationBuilder.DropTable(
+                name: "PuzzleWallets");
         }
     }
 }

@@ -71,7 +71,6 @@ namespace ScannerKeyHunt.Domain.Services
             BigInteger valoresPorArea = BigInteger.Max(valoresPorBloco * maxBlocos, 1);
             BigInteger valoresPorSetor = BigInteger.Max(valoresPorArea * maxAreas, 1);
 
-            // Divide o range em setores, áreas e blocos
             for (int s = 0; s < maxSetores; s++)
             {
                 BigInteger setorInicio = inicioRange + (s * valoresPorSetor);
@@ -90,11 +89,16 @@ namespace ScannerKeyHunt.Domain.Services
 
                 sections.Add(section);
 
-                //_unitOfWork.SectionRepository.Add(section);
+                if (setorFim >= fimRange) break;
+            }
 
+            _unitOfWork.SectionRepository.AddRange(sections);
+
+            foreach (Section section in sections)
+            {
                 for (int a = 0; a < maxAreas; a++)
                 {
-                    BigInteger areaInicio = setorInicio + (a * valoresPorArea);
+                    BigInteger areaInicio = HexToBigInteger(section.StartKey) + (a * valoresPorArea);
                     BigInteger areaFim = BigInteger.Min(areaInicio + valoresPorArea - 1, fimRange);
 
                     Area area = new Area
@@ -111,35 +115,37 @@ namespace ScannerKeyHunt.Domain.Services
 
                     areas.Add(area);
 
-                    for (int b = 0; b < maxBlocos; b++)
-                    {
-                        BigInteger blocoInicio = areaInicio + (b * valoresPorBloco);
-                        BigInteger blocoFim = BigInteger.Min(blocoInicio + valoresPorBloco - 1, fimRange);
-
-                        Block block = new Block
-                        {
-                            AreaId = area.Id,
-                            Area = area,
-                            StartKey = BigIntToHex(blocoInicio),
-                            EndKey = BigIntToHex(blocoFim),
-                            IsCompleted = false,
-                            Disabled = false,
-                            IsLocked = false,
-                            Seed = Guid.NewGuid().ToString()
-                        };
-
-                        blocos.Add(block);
-
-                        if (blocoFim >= fimRange) break;
-                    }
                     if (areaFim >= fimRange) break;
                 }
-
-                if (setorFim >= fimRange) break;
             }
 
-            _unitOfWork.SectionRepository.AddRange(sections);
             _unitOfWork.AreaRepository.AddRange(areas);
+
+            foreach (Area area in areas)
+            {
+                for (int b = 0; b < maxBlocos; b++)
+                {
+                    BigInteger blocoInicio = HexToBigInteger(area.StartKey) + (b * valoresPorBloco);
+                    BigInteger blocoFim = BigInteger.Min(blocoInicio + valoresPorBloco - 1, fimRange);
+
+                    Block block = new Block
+                    {
+                        AreaId = area.Id,
+                        Area = area,
+                        StartKey = BigIntToHex(blocoInicio),
+                        EndKey = BigIntToHex(blocoFim),
+                        IsCompleted = false,
+                        Disabled = false,
+                        IsLocked = false,
+                        Seed = Guid.NewGuid().ToString()
+                    };
+
+                    blocos.Add(block);
+
+                    if (blocoFim >= fimRange) break;
+                }
+            }
+            
             _unitOfWork.BlockRepository.AddRange(blocos);
 
             _unitOfWork.Save();

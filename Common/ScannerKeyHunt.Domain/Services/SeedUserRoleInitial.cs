@@ -109,7 +109,8 @@ namespace ScannerKeyHunt.Domain.Services
                 {
                     try
                     {
-                        CreateUser(role);
+                        if (!string.IsNullOrEmpty(role.Value) && _unitOfWork.UserIdentityRepository.FindByEmail(role.Value) == null)
+                            CreateUser(role);
                     }
                     catch (Exception ex)
                     {

@@ -20,13 +20,15 @@ namespace ScannerKeyHunt.Domain.Services
         {
             PuzzleWallet puzzleWallet = GeneratePuzzles();
 
-            //string startKeyHex = "0000000000000000000000000000000000000000000000040000000000000000";
-            //string stopKeyHex = "000000000000000000000000000000000000000000000007ffffffffffffffff";
+            List<Section> sections = _unitOfWork.SectionRepository.GetAll(x => x.PuzzleWalletId == puzzleWallet.Id).ToList();
 
-            PartitionCalculator calculator = new PartitionCalculator(puzzleWallet, _unitOfWork);
-            List<Section> sections = calculator.DividirRange();
+            if (sections.Count == 0)
+            {
+                PartitionCalculator calculator = new PartitionCalculator(puzzleWallet, _unitOfWork);
+                sections = calculator.DividirRange();
 
-            //_unitOfWork.SectionRepository.AddRange(sections);
+                return;
+            }
         }
 
         public PuzzleWallet GeneratePuzzles()
