@@ -1,58 +1,47 @@
 ﻿using Microsoft.Extensions.Logging;
 using ScannerKeyHunt.Data.Entities;
 using ScannerKeyHunt.Domain.Interfaces;
-using ScannerKeyHunt.Repository.Interfaces;
 
 namespace ScannerKeyHunt.Domain.Services
 {
     public class SectionService : ISectionService
     {
-        private readonly IUnitOfWork _unitOfWork;
+        private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<SectionService> _logger;
 
-        public SectionService(IUnitOfWork unitOfWork, ILogger<SectionService> logger)
+        public SectionService(IServiceProvider serviceProvider, ILogger<SectionService> logger)
         {
-            _unitOfWork = unitOfWork;
+            _serviceProvider = serviceProvider;
             _logger = logger;
+        }
+
+        public void ExecutarTarefa(PartitionCalculator calculator)
+        {
+            try
+            {
+                Block block = calculator.GetOrCreateBlock();
+
+                calculator.ProccessBlock(block);
+            }
+            catch (Exception ex)
+            {
+            }
         }
 
         public void GenerateSections()
         {
-            PuzzleWallet puzzleWallet = GeneratePuzzles();
+            PartitionCalculator calculator = new PartitionCalculator(_serviceProvider);
+            calculator.GeneratePuzzle();
 
-            List<Section> sections = _unitOfWork.SectionRepository.GetAll(x => x.PuzzleWalletId == puzzleWallet.Id).ToList();
+            int numeroDeWorkers = 10000;
+            List<Task> tasks = new List<Task>();
 
-            if (sections.Count == 0)
+            for (int i = 0; i < numeroDeWorkers; i++)
             {
-                PartitionCalculator calculator = new PartitionCalculator(puzzleWallet, _unitOfWork);
-                sections = calculator.DividirRange();
-
-                return;
-            }
-        }
-
-        public PuzzleWallet GeneratePuzzles()
-        {
-            PuzzleWallet puzzleWallet = _unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9");
-
-            if (puzzleWallet == null)
-            {
-                puzzleWallet = new PuzzleWallet()
-                {
-                    StartKey = "0000000000000000000000000000000000000000000000040000000000000000",
-                    EndKey = "000000000000000000000000000000000000000000000007ffffffffffffffff",
-                    Address = "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9",
-                    PuzzleId = "67",
-                    IsLocked = false,
-                    Disabled = false,
-                    IsCompleted = false
-                };
-
-                _unitOfWork.PuzzleWalletCache.Add(puzzleWallet);
-                _unitOfWork.Save();
+                tasks.Add(Task.Run(() => ExecutarTarefa(calculator)));
             }
 
-            return puzzleWallet;
+            Task.WhenAll(tasks).Wait();
         }
     }
 }
