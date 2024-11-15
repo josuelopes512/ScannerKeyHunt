@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using ScannerKeyHunt.Data.Entities;
 using ScannerKeyHunt.Repository.Interfaces;
+using ScannerKeyHunt.Utils;
 using System.Numerics;
 using System.Security.Cryptography;
 
@@ -18,19 +19,39 @@ namespace ScannerKeyHunt.Domain.Services
         private const long areasPerSection = 64;
         private const long blocksPerArea = 16;
         private const long intervalBlocks = 50000;
-
+        
+        private readonly long _walletPuzzleNumber;
+        private readonly Puzzle _puzzle;
         private readonly PuzzleWallet _puzzleWallet;
         private readonly IUnitOfWork _unitOfWork;
         private readonly IServiceProvider _serviceProvider;
 
-        public PartitionCalculator(IServiceProvider serviceProvider)
+        public PartitionCalculator(IServiceProvider serviceProvider, long walletPuzzleNumber = 67)
         {
             _serviceProvider = serviceProvider;
             _unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
+
+            _walletPuzzleNumber = walletPuzzleNumber;
+            _puzzle = PuzzleList.GetPuzzles().FirstOrDefault(x => x.Number.Equals(_walletPuzzleNumber.ToString()));
             _puzzleWallet = GeneratePuzzles();
             startKey = HexToBigInt(_puzzleWallet.StartKey);
             stopKey = HexToBigInt(_puzzleWallet.EndKey);
             intervalTotal = stopKey - startKey;
+        }
+
+        public void ProcessarBloco()
+        {
+            try
+            {
+                Block block = GetOrCreateBlock();
+
+                ProccessBlock(block);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message.Contains("Endereço encontrado"))
+                    throw ex;
+            }
         }
 
         public void GeneratePuzzle()
@@ -45,15 +66,15 @@ namespace ScannerKeyHunt.Domain.Services
 
         private PuzzleWallet GeneratePuzzles()
         {
-            PuzzleWallet puzzleWallet = _unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9");
+            PuzzleWallet puzzleWallet = _unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == _puzzle.Address);
 
             if (puzzleWallet == null)
             {
                 puzzleWallet = new PuzzleWallet()
                 {
-                    StartKey = "0000000000000000000000000000000000000000000000040000000000000000",
-                    EndKey = "000000000000000000000000000000000000000000000007ffffffffffffffff",
-                    Address = "1BY8GQbnueYofwSuFAT3USAhGjPrkxDdW9",
+                    StartKey = _puzzle.HexStart,
+                    EndKey = _puzzle.HexStop,
+                    Address = _puzzle.Address,
                     PuzzleId = "67",
                     IsLocked = false,
                     Disabled = false,
@@ -98,8 +119,8 @@ namespace ScannerKeyHunt.Domain.Services
             List<Section> sections = new List<Section>();
             List<Area> areas = new List<Area>();
 
-            BigInteger inicioRange = startKey; // HexToBigInteger(inicioHex);
-            BigInteger fimRange = stopKey; // HexToBigInteger(fimHex);
+            BigInteger inicioRange = startKey;
+            BigInteger fimRange = stopKey;
 
             BigInteger totalValores = fimRange - inicioRange + 1;
 
@@ -240,10 +261,10 @@ namespace ScannerKeyHunt.Domain.Services
 
         public void ProccessBlock(Block block)
         {
-            //for (BigInteger i = HexToBigInteger(block.StartKey); i < HexToBigInteger(block.EndKey); i++)
-            //{
-            //    //Console.WriteLine(i);
-            //}
+            List<AddressWallet> addressWallets = Utils.Helpers.RandomHexList(HexToBigInteger(block.StartKey), HexToBigInteger(block.EndKey));
+
+            if (addressWallets.Select(x => x.Address).Contains(_puzzle.Address))
+                throw new Exception($"Endereço encontrado: {addressWallets.Where(x => x.Address == _puzzle.Address ).First().ToString()}");
 
             block.IsCompleted = true;
 
