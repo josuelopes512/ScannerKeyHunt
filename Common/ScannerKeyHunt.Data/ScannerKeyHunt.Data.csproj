@@ -7,6 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="MigrationsOld\**" />
+    <Compile Remove="QueryEntities\**" />
+    <EmbeddedResource Remove="MigrationsOld\**" />
+    <EmbeddedResource Remove="QueryEntities\**" />
+    <None Remove="MigrationsOld\**" />
+    <None Remove="QueryEntities\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="EfCore.SchemaCompare" Version="8.2.0" />
     <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="8.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.10" />
@@ -21,9 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="MigrationsOld\" />
     <Folder Include="Migrations\" />
-    <Folder Include="QueryEntities\" />
   </ItemGroup>
 
 </Project>

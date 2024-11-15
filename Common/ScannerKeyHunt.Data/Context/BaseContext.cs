@@ -29,6 +29,36 @@ namespace ScannerKeyHunt.Data.Context
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
+            modelBuilder.Entity<Area>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).ValueGeneratedOnAdd();
+            });
+
+            modelBuilder.Entity<Block>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).ValueGeneratedOnAdd();
+            });
+
+            modelBuilder.Entity<Section>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).ValueGeneratedOnAdd();
+            });
+
+            modelBuilder.Entity<PuzzleWallet>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).ValueGeneratedOnAdd();
+            });
+
+            modelBuilder.Entity<TokenAuth>(entity =>
+            {
+                entity.HasKey(a => a.Id);
+                entity.Property(a => a.Id).ValueGeneratedOnAdd();
+            });
+
             //modelBuilder.Entity<User>(entity =>
             //{
             //    entity.ToTable("User");

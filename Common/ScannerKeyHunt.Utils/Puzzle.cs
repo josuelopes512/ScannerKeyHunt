@@ -26,5 +26,10 @@
         /// Bitcoin wallet address type
         /// </summary>
         public AddressType AddressType { get; set; }
+
+        public string ToString()
+        {
+            return $"Number: {Number}, HexStart: {HexStart}, HexStop: {HexStop}, Address: {Address}, AddressType: {AddressType.ToString()}";
+        }
     }
 }

@@ -53,7 +53,7 @@ namespace ScannerKeyHunt.Utils
 
         public static List<AddressWallet> RandomHexList(BigInteger start, BigInteger end)
         {
-            int count = (int)(end - start);
+            int count = (start == end) ? (int)start : (int)(end - start);
 
             ConcurrentBag<AddressWallet> keyList = new ConcurrentBag<AddressWallet>();
 

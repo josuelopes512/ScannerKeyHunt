@@ -6,7 +6,8 @@ namespace ScannerKeyHunt.Data.Entities
     public class BaseModel : BaseDate
     {
         [Key]
-        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        [DatabaseGeneratedAttribute(DatabaseGeneratedOption.Identity)]
+
         public long Id { get; set; }
 
         [ForeignKey("User")]

@@ -2,7 +2,6 @@
 using ScannerKeyHunt.Data.Helpers;
 using ScannerKeyHunt.Repository.Interfaces.Cache;
 using ScannerKeyHunt.Repository.Repository.BaseRepository;
-using System;
 using System.Linq.Expressions;
 
 namespace ScannerKeyHunt.Repository.Cache.BaseCache

@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using ScannerKeyHunt.Data.Entities;
 using ScannerKeyHunt.Domain.Interfaces;
-using ScannerKeyHunt.Utils;
-using static Google.Cloud.Firestore.V1.StructuredAggregationQuery.Types.Aggregation.Types;
 
 namespace ScannerKeyHunt.Domain.Services
 {
@@ -34,44 +32,47 @@ namespace ScannerKeyHunt.Domain.Services
 
         public void GenerateSections()
         {
-            PartitionCalculator calculator = new PartitionCalculator(_serviceProvider);
-            calculator.GeneratePuzzle();
+            PartitionCalculator calculator = new PartitionCalculator(_serviceProvider, 67);
 
-            Parallel.For(0, 10000, i =>
-            {
-                _logger.LogCritical($"Processando bloco {i}");
+            //Parallel.For(0, 5, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
+            //i =>
+            //{
+            //    //_logger.LogCritical($"Processando bloco {i}");
 
-                try
-                {
-                    calculator.ProcessarBloco();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, $"Endereço encontrado: {ex.Message}");
-                }
+            //    try
+            //    {
+            //        calculator.ProcessarBloco();
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        _logger.LogError(ex, $"Endereço encontrado: {ex.Message}");
+            //    }
 
-                _logger.LogCritical($"Bloco Processado {i}");
-            });
+            //    _logger.LogCritical($"Bloco Processado {i}");
+            //});
 
-            int numeroDeWorkers = 10000;
-            List<Task> tasks = new List<Task>();
+            //for (int i = 1; i <= 160; i++)
+            //{
+            //    int numeroDeWorkers = 10000;
+            //    List<Task> tasks = new List<Task>();
 
-            for (int i = 0; i < numeroDeWorkers; i++)
-            {
-                tasks.Add(Task.Run(() =>
-                {
-                    try
-                    {
-                        calculator.ProcessarBloco();
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, $"Endereço encontrado: {ex.Message}");
-                    }
-                }));
-            }
+            //    for (int j = 0; j < numeroDeWorkers; j++)
+            //    {
+            //        tasks.Add(new Task(() =>
+            //        {
+            //            try
+            //            {
+            //                calculator.ProcessarBloco();
+            //            }
+            //            catch (Exception ex)
+            //            {
+            //                _logger.LogError(ex, $"Endereço encontrado: {ex.Message}");
+            //            }
+            //        }));
+            //    }
 
-            Task.WhenAll(tasks).Wait();
+            //    Task.WhenAll(tasks).Wait();
+            //}
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Pipelines.Sockets.Unofficial.Arenas;
 using ScannerKeyHunt.Data.Entities;
 using ScannerKeyHunt.Repository.Interfaces;
 using ScannerKeyHunt.Utils;
@@ -19,17 +20,16 @@ namespace ScannerKeyHunt.Domain.Services
         private const long areasPerSection = 64;
         private const long blocksPerArea = 16;
         private const long intervalBlocks = 50000;
-        
+
         private readonly long _walletPuzzleNumber;
         private readonly Puzzle _puzzle;
         private readonly PuzzleWallet _puzzleWallet;
-        private readonly IUnitOfWork _unitOfWork;
         private readonly IServiceProvider _serviceProvider;
+        private List<Section> _sections;
 
-        public PartitionCalculator(IServiceProvider serviceProvider, long walletPuzzleNumber = 67)
+        public PartitionCalculator(IServiceProvider serviceProvider, long walletPuzzleNumber = 2)
         {
             _serviceProvider = serviceProvider;
-            _unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             _walletPuzzleNumber = walletPuzzleNumber;
             _puzzle = PuzzleList.GetPuzzles().FirstOrDefault(x => x.Number.Equals(_walletPuzzleNumber.ToString()));
@@ -37,6 +37,8 @@ namespace ScannerKeyHunt.Domain.Services
             startKey = HexToBigInt(_puzzleWallet.StartKey);
             stopKey = HexToBigInt(_puzzleWallet.EndKey);
             intervalTotal = stopKey - startKey;
+
+            GeneratePuzzle();
         }
 
         public void ProcessarBloco()
@@ -54,19 +56,21 @@ namespace ScannerKeyHunt.Domain.Services
             }
         }
 
-        public void GeneratePuzzle()
+        private void GeneratePuzzle()
         {
-            List<Section> sections = _unitOfWork.SectionRepository.GetAll(x => x.PuzzleWalletId == _puzzleWallet.Id).ToList();
+            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
+            _sections = unitOfWork.SectionRepository.GetAll(x => x.PuzzleWalletId == _puzzleWallet.Id).ToList();
 
-            if (sections.Count == 0)
+            if (_sections.Count == 0)
             {
-                sections = DividirRange();
+                _sections = DividirRange();
             }
         }
 
         private PuzzleWallet GeneratePuzzles()
         {
-            PuzzleWallet puzzleWallet = _unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == _puzzle.Address);
+            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
+            PuzzleWallet puzzleWallet = unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == _puzzle.Address && string.IsNullOrEmpty(x.PrivateKey) && !x.IsCompleted && !x.IsLocked && !x.Disabled);
 
             if (puzzleWallet == null)
             {
@@ -75,14 +79,14 @@ namespace ScannerKeyHunt.Domain.Services
                     StartKey = _puzzle.HexStart,
                     EndKey = _puzzle.HexStop,
                     Address = _puzzle.Address,
-                    PuzzleId = "67",
+                    PuzzleId = _puzzle.Number,
                     IsLocked = false,
                     Disabled = false,
                     IsCompleted = false
                 };
 
-                _unitOfWork.PuzzleWalletCache.Add(puzzleWallet);
-                _unitOfWork.Save();
+                unitOfWork.PuzzleWalletCache.Add(puzzleWallet);
+                unitOfWork.Save();
             }
 
             return puzzleWallet;
@@ -118,6 +122,7 @@ namespace ScannerKeyHunt.Domain.Services
         {
             List<Section> sections = new List<Section>();
             List<Area> areas = new List<Area>();
+            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             BigInteger inicioRange = startKey;
             BigInteger fimRange = stopKey;
@@ -149,7 +154,7 @@ namespace ScannerKeyHunt.Domain.Services
                 if (setorFim >= fimRange) break;
             }
 
-            _unitOfWork.SectionRepository.AddRange(sections);
+            unitOfWork.SectionRepository.AddRange(sections);
 
             foreach (Section section in sections)
             {
@@ -176,9 +181,9 @@ namespace ScannerKeyHunt.Domain.Services
                 }
             }
 
-            _unitOfWork.AreaRepository.AddRange(areas);
+            unitOfWork.AreaRepository.AddRange(areas);
 
-            _unitOfWork.Save();
+            unitOfWork.Save();
 
             return sections;
         }
@@ -186,6 +191,7 @@ namespace ScannerKeyHunt.Domain.Services
         private void CreateArea(List<Area> areas)
         {
             List<Block> blocos = new List<Block>();
+            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             BigInteger totalValores = stopKey - startKey + 1;
             BigInteger valoresPorBloco = BigInteger.Max(totalValores / (numSections * areasPerSection * blocksPerArea), 1);
@@ -215,30 +221,49 @@ namespace ScannerKeyHunt.Domain.Services
                 }
             }
 
-            _unitOfWork.BlockRepository.AddRange(blocos);
+            unitOfWork.BlockRepository.AddRange(blocos);
 
-            _unitOfWork.Save();
+            unitOfWork.Save();
         }
+
+        //private static BigInteger GerarBigIntegerAleatorio(BigInteger min, BigInteger max)
+        //{
+        //    if (min > max) throw new ArgumentException("O valor mínimo não pode ser maior que o valor máximo.");
+
+        //    BigInteger intervalo = max - min + 1;
+        //    int numeroBytes = intervalo.ToByteArray().Length;
+        //    BigInteger resultado;
+
+        //    // Gera um número aleatório dentro do intervalo até que seja menor do que o intervalo desejado
+        //    using (var rng = RandomNumberGenerator.Create())
+        //    {
+        //        byte[] bytesAleatorios = new byte[numeroBytes];
+        //        do
+        //        {
+        //            rng.GetBytes(bytesAleatorios);
+        //            resultado = new BigInteger(bytesAleatorios);
+
+        //            // Ajusta o valor para que seja positivo
+        //            resultado = BigInteger.Abs(resultado);
+        //        } while (resultado >= intervalo);
+        //    }
+
+        //    return resultado + min;
+        //}
 
         private static BigInteger GerarBigIntegerAleatorio(BigInteger min, BigInteger max)
         {
-            if (min > max) throw new ArgumentException("O valor mínimo não pode ser maior que o valor máximo.");
-
             BigInteger intervalo = max - min + 1;
-            int numeroBytes = intervalo.ToByteArray().Length;
-            BigInteger resultado;
+            byte[] bytes = intervalo.ToByteArray();
 
-            // Gera um número aleatório dentro do intervalo até que seja menor do que o intervalo desejado
+            BigInteger resultado;
             using (var rng = RandomNumberGenerator.Create())
             {
-                byte[] bytesAleatorios = new byte[numeroBytes];
                 do
                 {
-                    rng.GetBytes(bytesAleatorios);
-                    resultado = new BigInteger(bytesAleatorios);
-
-                    // Ajusta o valor para que seja positivo
-                    resultado = BigInteger.Abs(resultado);
+                    rng.GetBytes(bytes);
+                    bytes[^1] &= 0x7F; // Garante que o número gerado seja positivo
+                    resultado = new BigInteger(bytes);
                 } while (resultado >= intervalo);
             }
 
@@ -249,91 +274,117 @@ namespace ScannerKeyHunt.Domain.Services
         {
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            Block block = unitOfWork.BlockRepository.GetAll(x => !x.IsCompleted && !x.IsLocked && !x.Disabled ).ToList().FirstOrDefault();
+            Random rnd = new Random();
 
-            if (block == null)
-            {
-                block = SortedSectionArea();
-            }
+            Section section = _sections
+                .OrderBy(item => rnd.Next())
+                .FirstOrDefault();
 
-            return block;
+            Area area = unitOfWork.AreaRepository
+                .GetAll(x => x.SectionId == section.Id)
+                .OrderBy(item => rnd.Next())
+                .FirstOrDefault();
+
+            Block block = unitOfWork.BlockRepository.GetAll(x => !x.IsCompleted && !x.IsLocked && !x.Disabled && x.AreaId == area.Id).FirstOrDefault();
+
+            return block ?? SortedSectionArea(unitOfWork, area);
         }
 
         public void ProccessBlock(Block block)
         {
             List<AddressWallet> addressWallets = Utils.Helpers.RandomHexList(HexToBigInteger(block.StartKey), HexToBigInteger(block.EndKey));
 
+            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
+            
             if (addressWallets.Select(x => x.Address).Contains(_puzzle.Address))
-                throw new Exception($"Endereço encontrado: {addressWallets.Where(x => x.Address == _puzzle.Address ).First().ToString()}");
+            {
+                _puzzleWallet.PrivateKey = addressWallets.Where(x => x.Address == _puzzle.Address).First().PrivateKey;
+                _puzzleWallet.IsLocked = true;
+                _puzzleWallet.Disabled = true;
+                _puzzleWallet.IsCompleted = true;
+
+                unitOfWork.PuzzleWalletCache.Update(_puzzleWallet);
+            }
+                //throw new Exception($"Endereço encontrado: {addressWallets.Where(x => x.Address == _puzzle.Address).First().ToString()}");
 
             block.IsCompleted = true;
-
-            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             unitOfWork.BlockRepository.Update(block);
             unitOfWork.Save();
         }
 
-        public Block SortedSectionArea()
+        private BigInteger ValidateHasBlockProcessed(Area area)
         {
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-            Random rnd = new Random();
+            BigInteger randomNumber = GerarBigIntegerAleatorio(
+                HexToBigInteger(area.StartKey),
+                HexToBigInteger(area.EndKey));
 
-            Section section = unitOfWork.SectionRepository.GetAll(x => x.PuzzleWalletId == _puzzleWallet.Id).ToList().OrderBy(item => rnd.Next()).FirstOrDefault();
-
-            Area area = unitOfWork.AreaRepository.GetAll(x => x.SectionId == section.Id).ToList().OrderBy(item => rnd.Next()).FirstOrDefault();
-
-            List<BigInteger> oldBlocks = unitOfWork.BlockRepository.GetAll(x => x.AreaId == area.Id).ToList().Select(x => HexToBigInteger(x.StartKey)).ToList();
-
-            BigInteger inicioNumeroAleatorio = GerarBigIntegerAleatorio(HexToBigInteger(area.StartKey), HexToBigInteger(area.EndKey));
+            List<BigInteger> oldBlocks = unitOfWork.BlockRepository
+                .GetAll(x => x.AreaId == area.Id)
+                .Select(x => HexToBigInteger(x.StartKey))
+                .ToList();
 
             bool isOkvalidateBlock = false;
 
             while (!isOkvalidateBlock)
             {
                 bool hasbreak = false;
+
                 foreach (BigInteger initBlock in oldBlocks)
                 {
                     BigInteger endBlock = (initBlock + 50000) > HexToBigInteger(area.EndKey) ? HexToBigInteger(area.EndKey) : (initBlock + 50000);
                     hasbreak = false;
 
-                    while (inicioNumeroAleatorio >= initBlock && inicioNumeroAleatorio <= endBlock)
+                    while (randomNumber >= initBlock && randomNumber <= endBlock && initBlock != endBlock)
                     {
-                        inicioNumeroAleatorio = GerarBigIntegerAleatorio(HexToBigInteger(area.StartKey), HexToBigInteger(area.EndKey));
+                        randomNumber = GerarBigIntegerAleatorio(HexToBigInteger(area.StartKey), HexToBigInteger(area.EndKey));
                         hasbreak = true;
                         break;
                     }
 
                     if (hasbreak) break;
                 }
+
                 if (hasbreak) continue;
                 isOkvalidateBlock = true;
             }
 
-            BigInteger fimNumeroAleatorio = (inicioNumeroAleatorio + 50000) > HexToBigInteger(area.EndKey) ? HexToBigInteger(area.EndKey) : (inicioNumeroAleatorio + 50000);
+            return randomNumber;
+        }
 
-            Block block = unitOfWork.BlockRepository.GetAll(x => x.AreaId == area.Id && x.StartKey == BigIntToHex(inicioNumeroAleatorio)).ToList().FirstOrDefault();
-
-            if (block == null)
+        public Block CreateBlock(IUnitOfWork unitOfWork, Area area, BigInteger startRandomNumber, BigInteger endRandomNumber)
+        {
+            Block block = new Block
             {
-                block = new Block
-                {
-                    AreaId = area.Id,
-                    Area = area,
-                    StartKey = BigIntToHex(inicioNumeroAleatorio),
-                    EndKey = BigIntToHex(fimNumeroAleatorio),
-                    IsCompleted = false,
-                    Disabled = false,
-                    IsLocked = false,
-                    Seed = Guid.NewGuid().ToString()
-                };
+                AreaId = area.Id,
+                Area = area,
+                StartKey = BigIntToHex(startRandomNumber),
+                EndKey = BigIntToHex(endRandomNumber),
+                IsCompleted = false,
+                Disabled = false,
+                IsLocked = false,
+                Seed = Guid.NewGuid().ToString()
+            };
 
-                unitOfWork.BlockRepository.Add(block);
-                unitOfWork.Save();
-            }
+            unitOfWork.BlockRepository.Add(block);
+            unitOfWork.Save();
 
             return block;
+        }
+
+        private Block SortedSectionArea(IUnitOfWork unitOfWork, Area area)
+        {
+            BigInteger startRandomNumber = ValidateHasBlockProcessed(area);
+
+            BigInteger endRandomNumber = (startRandomNumber + 50000) > HexToBigInteger(area.EndKey) ? HexToBigInteger(area.EndKey) : (startRandomNumber + 50000);
+
+            Block block = unitOfWork.BlockRepository
+                .GetAll(x => x.AreaId == area.Id && x.StartKey == BigIntToHex(startRandomNumber))
+                .FirstOrDefault();
+
+            return block ?? CreateBlock(unitOfWork, area, startRandomNumber, endRandomNumber);
         }
     }
 }
