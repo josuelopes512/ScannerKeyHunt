@@ -32,7 +32,7 @@ namespace ScannerKeyHunt.Domain.Services
 
         public void GenerateSections()
         {
-            PartitionCalculator calculator = new PartitionCalculator(_serviceProvider, 67);
+            //PartitionCalculator calculator = new PartitionCalculator(_serviceProvider, 67);
 
             //Parallel.For(0, 5, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount },
             //i =>

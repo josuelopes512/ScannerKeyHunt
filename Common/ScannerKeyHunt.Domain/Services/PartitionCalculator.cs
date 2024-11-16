@@ -3,8 +3,10 @@ using Pipelines.Sockets.Unofficial.Arenas;
 using ScannerKeyHunt.Data.Entities;
 using ScannerKeyHunt.Repository.Interfaces;
 using ScannerKeyHunt.Utils;
+using System.Collections.Concurrent;
 using System.Numerics;
 using System.Security.Cryptography;
+using static Google.Cloud.Firestore.V1.StructuredAggregationQuery.Types.Aggregation.Types;
 
 namespace ScannerKeyHunt.Domain.Services
 {
@@ -65,12 +67,21 @@ namespace ScannerKeyHunt.Domain.Services
             {
                 _sections = DividirRange();
             }
+
+            if (_sections.Any(x => x.IsCompleted))
+            {
+                throw new Exception("Sections Has Completed");
+                //_sections.RemoveAll(x => x.IsCompleted);
+            }
         }
 
         private PuzzleWallet GeneratePuzzles()
         {
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
-            PuzzleWallet puzzleWallet = unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == _puzzle.Address && string.IsNullOrEmpty(x.PrivateKey) && !x.IsCompleted && !x.IsLocked && !x.Disabled);
+            PuzzleWallet puzzleWallet = unitOfWork.PuzzleWalletCache.GetByExpressionBool(x => x.Address == _puzzle.Address && !x.Disabled);
+
+            if (puzzleWallet != null && puzzleWallet.IsCompleted && string.IsNullOrEmpty(puzzleWallet.PrivateKey))
+                throw new Exception("PuzzleWallet já foi completado.");
 
             if (puzzleWallet == null)
             {
@@ -92,38 +103,8 @@ namespace ScannerKeyHunt.Domain.Services
             return puzzleWallet;
         }
 
-        private static string BigIntToHex(BigInteger bigInt)
-        {
-            // Converte para hexadecimal e garante que a string tenha pelo menos 64 caracteres
-            string hex = bigInt.ToString("X");
-
-            // Caso o número seja zero, o "ToString" retorna uma string vazia
-            // Portanto, se for zero, retornamos uma string com 64 zeros
-            if (bigInt == BigInteger.Zero)
-            {
-                return new string('0', 64);
-            }
-
-            // Garantir que a string tenha pelo menos 64 caracteres, adicionando zeros à esquerda se necessário
-            return hex.PadLeft(64, '0');
-        }
-
-        public static BigInteger HexToBigInteger(string hex)
-        {
-            if (hex.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
-            {
-                hex = hex.Substring(2);
-            }
-
-            return BigInteger.Parse("0" + hex, System.Globalization.NumberStyles.HexNumber);
-        }
-
         public List<Section> DividirRange()
         {
-            List<Section> sections = new List<Section>();
-            List<Area> areas = new List<Area>();
-            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
-
             BigInteger inicioRange = startKey;
             BigInteger fimRange = stopKey;
 
@@ -133,59 +114,131 @@ namespace ScannerKeyHunt.Domain.Services
             BigInteger valoresPorArea = BigInteger.Max(valoresPorBloco * blocksPerArea, 1);
             BigInteger valoresPorSetor = BigInteger.Max(valoresPorArea * areasPerSection, 1);
 
-            for (long s = 0; s < numSections; s++)
+            ConcurrentBag<Section> sections = new ConcurrentBag<Section>();
+
+            Parallel.For(0, areasPerSection, s =>
             {
-                BigInteger setorInicio = inicioRange + (s * valoresPorSetor);
-                BigInteger setorFim = BigInteger.Min(setorInicio + valoresPorSetor - 1, fimRange);
-
-                Section section = new Section
+                try
                 {
-                    PuzzleWalletId = _puzzleWallet.Id,
-                    StartKey = BigIntToHex(setorInicio),
-                    EndKey = BigIntToHex(setorFim),
-                    IsCompleted = false,
-                    Disabled = false,
-                    IsLocked = false,
-                    Seed = Guid.NewGuid().ToString()
-                };
+                    BigInteger setorInicio = inicioRange + (s * valoresPorSetor);
+                    BigInteger setorFim = BigInteger.Min(setorInicio + valoresPorSetor - 1, fimRange);
 
-                sections.Add(section);
+                    string seed = Utils.Helpers.GerarHashv4(Utils.Helpers.IntervalSeedHexList(setorInicio, setorFim).Select(x => x.Address).ToList());
 
-                if (setorFim >= fimRange) break;
-            }
-
-            unitOfWork.SectionRepository.AddRange(sections);
-
-            foreach (Section section in sections)
-            {
-                for (long a = 0; a < areasPerSection; a++)
-                {
-                    BigInteger areaInicio = HexToBigInteger(section.StartKey) + (a * valoresPorArea);
-                    BigInteger areaFim = BigInteger.Min(areaInicio + valoresPorArea - 1, fimRange);
-
-                    Area area = new Area
+                    Section section = new Section
                     {
-                        SectionId = section.Id,
-                        Section = section,
-                        StartKey = BigIntToHex(areaInicio),
-                        EndKey = BigIntToHex(areaFim),
+                        PuzzleWalletId = _puzzleWallet.Id,
+                        StartKey = Utils.Helpers.BigIntToHex(setorInicio),
+                        EndKey = Utils.Helpers.BigIntToHex(setorFim),
                         IsCompleted = false,
                         Disabled = false,
                         IsLocked = false,
-                        Seed = Guid.NewGuid().ToString()
+                        Seed = seed
                     };
 
-                    areas.Add(area);
+                    sections.Add(section);
 
-                    if (areaFim >= fimRange) break;
+                    if (setorFim >= fimRange) return;
                 }
-            }
+                catch (Exception ex)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+            });
 
-            unitOfWork.AreaRepository.AddRange(areas);
+            IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
+            
+            unitOfWork.SectionRepository.AddRange(sections.ToList());
+
+            //for (long s = 0; s < numSections; s++)
+            //{
+            //    BigInteger setorInicio = inicioRange + (s * valoresPorSetor);
+            //    BigInteger setorFim = BigInteger.Min(setorInicio + valoresPorSetor - 1, fimRange);
+
+            //    string seed = Utils.Helpers.GerarHashv4(Utils.Helpers.InvervalHexList(setorInicio, setorFim).Select(x => x.Address).ToList());
+
+            //    Section section = new Section
+            //    {
+            //        PuzzleWalletId = _puzzleWallet.Id,
+            //        StartKey = Utils.Helpers.BigIntToHex(setorInicio),
+            //        EndKey = Utils.Helpers.BigIntToHex(setorFim),
+            //        IsCompleted = false,
+            //        Disabled = false,
+            //        IsLocked = false,
+            //        Seed = seed
+            //    };
+
+            //    sections.Add(section);
+
+            //    if (setorFim >= fimRange) break;
+            //}
+
+            ConcurrentBag<Area> areas = new ConcurrentBag<Area>();
+
+            Parallel.ForEach(sections, section =>
+            {
+                Parallel.For(0, areasPerSection, a =>
+                {
+                    try
+                    {
+                        BigInteger areaInicio = Utils.Helpers.HexToBigInteger(section.StartKey) + (a * valoresPorArea);
+                        BigInteger areaFim = BigInteger.Min(areaInicio + valoresPorArea - 1, fimRange);
+                        string seed = Utils.Helpers.GerarHashv4(Utils.Helpers.IntervalSeedHexList(areaInicio, areaFim).Select(x => x.Address).ToList());
+
+                        Area area = new Area
+                        {
+                            SectionId = section.Id,
+                            Section = section,
+                            StartKey = Utils.Helpers.BigIntToHex(areaInicio),
+                            EndKey = Utils.Helpers.BigIntToHex(areaFim),
+                            IsCompleted = false,
+                            Disabled = false,
+                            IsLocked = false,
+                            Seed = seed
+                        };
+
+                        areas.Add(area);
+
+                        if (areaFim >= fimRange) return;
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex.Message);
+                    }
+                });
+            });
+
+            //foreach (Section section in sections)
+            //{
+            //    for (long a = 0; a < areasPerSection; a++)
+            //    {
+            //        BigInteger areaInicio = Utils.Helpers.HexToBigInteger(section.StartKey) + (a * valoresPorArea);
+            //        BigInteger areaFim = BigInteger.Min(areaInicio + valoresPorArea - 1, fimRange);
+            //        string seed = Utils.Helpers.GerarHashv4(Utils.Helpers.InvervalHexList(areaInicio, areaFim).Select(x => x.Address).ToList());
+
+            //        Area area = new Area
+            //        {
+            //            SectionId = section.Id,
+            //            Section = section,
+            //            StartKey = Utils.Helpers.BigIntToHex(areaInicio),
+            //            EndKey = Utils.Helpers.BigIntToHex(areaFim),
+            //            IsCompleted = false,
+            //            Disabled = false,
+            //            IsLocked = false,
+            //            Seed = seed
+            //        };
+
+            //        areas.Add(area);
+
+            //        if (areaFim >= fimRange) break;
+            //    }
+            //}
+
+            unitOfWork.AreaRepository.AddRange(areas.ToList());
 
             unitOfWork.Save();
 
-            return sections;
+            return sections.ToList();
         }
 
         private void CreateArea(List<Area> areas)
@@ -200,19 +253,21 @@ namespace ScannerKeyHunt.Domain.Services
             {
                 for (int b = 0; b < blocksPerArea; b++)
                 {
-                    BigInteger blocoInicio = HexToBigInteger(area.StartKey) + (b * valoresPorBloco);
+                    BigInteger blocoInicio = Utils.Helpers.HexToBigInteger(area.StartKey) + (b * valoresPorBloco);
                     BigInteger blocoFim = BigInteger.Min(blocoInicio + valoresPorBloco - 1, stopKey);
+
+                    string seed = Utils.Helpers.GerarHashv4(Utils.Helpers.IntervalSeedHexList(blocoInicio, blocoFim).Select(x => x.Address).ToList());
 
                     Block block = new Block
                     {
                         AreaId = area.Id,
                         Area = area,
-                        StartKey = BigIntToHex(blocoInicio),
-                        EndKey = BigIntToHex(blocoFim),
+                        StartKey = Utils.Helpers.BigIntToHex(blocoInicio),
+                        EndKey = Utils.Helpers.BigIntToHex(blocoFim),
                         IsCompleted = false,
                         Disabled = false,
                         IsLocked = false,
-                        Seed = Guid.NewGuid().ToString()
+                        Seed = seed
                     };
 
                     blocos.Add(block);
@@ -280,19 +335,36 @@ namespace ScannerKeyHunt.Domain.Services
                 .OrderBy(item => rnd.Next())
                 .FirstOrDefault();
 
+            if (section == null)
+                throw new Exception("Section Not Found");
+
             Area area = unitOfWork.AreaRepository
                 .GetAll(x => x.SectionId == section.Id)
                 .OrderBy(item => rnd.Next())
                 .FirstOrDefault();
 
-            Block block = unitOfWork.BlockRepository.GetAll(x => !x.IsCompleted && !x.IsLocked && !x.Disabled && x.AreaId == area.Id).FirstOrDefault();
+            if (area == null)
+                throw new Exception("Area Not Found");
+
+            BigInteger intervalo = Utils.Helpers.HexToBigInteger(area.EndKey) - Utils.Helpers.HexToBigInteger(area.StartKey) + 1;
+
+            List<Block> blocks = unitOfWork.BlockRepository.GetAll(x => x.AreaId == area.Id);
+
+            if (blocks.All(x => x.IsCompleted) && blocks.Count == intervalo)
+                throw new Exception("Blocks has processed");
+
+            blocks.RemoveAll(x => x.IsCompleted);
+
+            Block block = blocks
+                .OrderBy(item => rnd.Next())
+                .FirstOrDefault();
 
             return block ?? SortedSectionArea(unitOfWork, area);
         }
 
         public void ProccessBlock(Block block)
         {
-            List<AddressWallet> addressWallets = Utils.Helpers.RandomHexList(HexToBigInteger(block.StartKey), HexToBigInteger(block.EndKey));
+            List<AddressWallet> addressWallets = Utils.Helpers.InvervalHexList(Utils.Helpers.HexToBigInteger(block.StartKey), Utils.Helpers.HexToBigInteger(block.EndKey));
 
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
             
@@ -318,15 +390,16 @@ namespace ScannerKeyHunt.Domain.Services
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
 
             BigInteger randomNumber = GerarBigIntegerAleatorio(
-                HexToBigInteger(area.StartKey),
-                HexToBigInteger(area.EndKey));
+                Utils.Helpers.HexToBigInteger(area.StartKey),
+                Utils.Helpers.HexToBigInteger(area.EndKey));
 
             List<BigInteger> oldBlocks = unitOfWork.BlockRepository
                 .GetAll(x => x.AreaId == area.Id)
-                .Select(x => HexToBigInteger(x.StartKey))
+                .Select(x => Utils.Helpers.HexToBigInteger(x.StartKey))
                 .ToList();
 
             bool isOkvalidateBlock = false;
+            int nextTry = 0;
 
             while (!isOkvalidateBlock)
             {
@@ -334,19 +407,20 @@ namespace ScannerKeyHunt.Domain.Services
 
                 foreach (BigInteger initBlock in oldBlocks)
                 {
-                    BigInteger endBlock = (initBlock + 50000) > HexToBigInteger(area.EndKey) ? HexToBigInteger(area.EndKey) : (initBlock + 50000);
+                    BigInteger endBlock = (initBlock + 50000) > Utils.Helpers.HexToBigInteger(area.EndKey) ? Utils.Helpers.HexToBigInteger(area.EndKey) : (initBlock + 50000);
                     hasbreak = false;
 
                     while (randomNumber >= initBlock && randomNumber <= endBlock && initBlock != endBlock)
                     {
-                        randomNumber = GerarBigIntegerAleatorio(HexToBigInteger(area.StartKey), HexToBigInteger(area.EndKey));
+                        randomNumber = GerarBigIntegerAleatorio(Utils.Helpers.HexToBigInteger(area.StartKey), Utils.Helpers.HexToBigInteger(area.EndKey));
                         hasbreak = true;
+                        nextTry++;
                         break;
                     }
 
                     if (hasbreak) break;
                 }
-
+                if (nextTry > 10) break;
                 if (hasbreak) continue;
                 isOkvalidateBlock = true;
             }
@@ -360,12 +434,12 @@ namespace ScannerKeyHunt.Domain.Services
             {
                 AreaId = area.Id,
                 Area = area,
-                StartKey = BigIntToHex(startRandomNumber),
-                EndKey = BigIntToHex(endRandomNumber),
+                StartKey = Utils.Helpers.BigIntToHex(startRandomNumber),
+                EndKey = Utils.Helpers.BigIntToHex(endRandomNumber),
                 IsCompleted = false,
                 Disabled = false,
                 IsLocked = false,
-                Seed = Guid.NewGuid().ToString()
+                Seed = Utils.Helpers.GerarHashv4(Utils.Helpers.IntervalSeedHexList(startRandomNumber, endRandomNumber).Select(x => x.Address).ToList())
             };
 
             unitOfWork.BlockRepository.Add(block);
@@ -378,10 +452,10 @@ namespace ScannerKeyHunt.Domain.Services
         {
             BigInteger startRandomNumber = ValidateHasBlockProcessed(area);
 
-            BigInteger endRandomNumber = (startRandomNumber + 50000) > HexToBigInteger(area.EndKey) ? HexToBigInteger(area.EndKey) : (startRandomNumber + 50000);
+            BigInteger endRandomNumber = (startRandomNumber + 50000) > Utils.Helpers.HexToBigInteger(area.EndKey) ? Utils.Helpers.HexToBigInteger(area.EndKey) : (startRandomNumber + 50000);
 
             Block block = unitOfWork.BlockRepository
-                .GetAll(x => x.AreaId == area.Id && x.StartKey == BigIntToHex(startRandomNumber))
+                .GetAll(x => x.AreaId == area.Id && x.StartKey == Utils.Helpers.BigIntToHex(startRandomNumber))
                 .FirstOrDefault();
 
             return block ?? CreateBlock(unitOfWork, area, startRandomNumber, endRandomNumber);

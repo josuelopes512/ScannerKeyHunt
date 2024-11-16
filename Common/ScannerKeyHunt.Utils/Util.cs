@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace ScannerKeyHunt.Utils
@@ -851,6 +852,74 @@ namespace ScannerKeyHunt.Utils
             stream.Read(buffer, 0, (int)stream.Length);
 
             return Convert.ToBase64String(buffer);
+        }
+
+        public static string GetDataAsync(string baseUrl, string endpoint, string data = "")
+        {
+            try
+            {
+                RestClient _client = new RestClient(baseUrl);
+
+                RestRequest request = new RestRequest(endpoint, Method.Get)
+                {
+                    RequestFormat = DataFormat.Json
+                };
+
+                if(!string.IsNullOrEmpty(data))
+                    request.AddJsonBody(data);
+
+                var response = _client.ExecuteAsync(request).Result;
+
+                if (response.IsSuccessful && response.Content != null)
+                {
+                    return response.Content;
+                }
+                else
+                {
+                    throw new Exception($"Erro: {response.StatusCode}, Detalhes: {response.ErrorMessage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Trata exceções gerais
+                throw new Exception($"Erro ao enviar requisição: {ex.Message}");
+            }
+        }
+
+        public static string RequestPost(string baseUrl, string endpoint, string data = "")
+        {
+            try
+            {
+                RestClient _client = new RestClient(baseUrl);
+
+                RestRequest request = new RestRequest(endpoint, Method.Post)
+                {
+                    RequestFormat = DataFormat.Json
+                };
+
+                // Adiciona o corpo da requisição como JSON
+                if (!string.IsNullOrEmpty(data))
+                    request.AddJsonBody(data);
+
+                // Envia a requisição e aguarda a resposta
+                var response = _client.ExecuteAsync(request).Result;
+
+                if (response.IsSuccessful)
+                {
+                    // Retorna o conteúdo da resposta em caso de sucesso
+                    return response.Content!;
+                }
+                else
+                {
+                    // Lida com erros
+                    throw new Exception($"Erro: {response.StatusCode}, Detalhes: {response.ErrorMessage}");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Trata exceções gerais
+                throw new Exception($"Erro ao enviar requisição: {ex.Message}");
+            }
         }
 
         public static string DownloadFile(string fileUrl, out Stream fileStream)
