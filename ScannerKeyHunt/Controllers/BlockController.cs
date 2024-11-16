@@ -35,7 +35,7 @@ namespace ScannerKeyHunt.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(new {Message = ex.Message});
+                return BadRequest(new { Message = ex.Message });
             }
         }
 

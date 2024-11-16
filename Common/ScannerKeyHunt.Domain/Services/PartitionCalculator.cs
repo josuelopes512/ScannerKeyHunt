@@ -6,7 +6,6 @@ using ScannerKeyHunt.Utils;
 using System.Collections.Concurrent;
 using System.Numerics;
 using System.Security.Cryptography;
-using static Google.Cloud.Firestore.V1.StructuredAggregationQuery.Types.Aggregation.Types;
 
 namespace ScannerKeyHunt.Domain.Services
 {
@@ -147,7 +146,7 @@ namespace ScannerKeyHunt.Domain.Services
             });
 
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
-            
+
             unitOfWork.SectionRepository.AddRange(sections.ToList());
 
             //for (long s = 0; s < numSections; s++)
@@ -367,7 +366,7 @@ namespace ScannerKeyHunt.Domain.Services
             List<AddressWallet> addressWallets = Utils.Helpers.InvervalHexList(Utils.Helpers.HexToBigInteger(block.StartKey), Utils.Helpers.HexToBigInteger(block.EndKey));
 
             IUnitOfWork unitOfWork = _serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IUnitOfWork>();
-            
+
             if (addressWallets.Select(x => x.Address).Contains(_puzzle.Address))
             {
                 _puzzleWallet.PrivateKey = addressWallets.Where(x => x.Address == _puzzle.Address).First().PrivateKey;
@@ -377,7 +376,7 @@ namespace ScannerKeyHunt.Domain.Services
 
                 unitOfWork.PuzzleWalletCache.Update(_puzzleWallet);
             }
-                //throw new Exception($"Endereço encontrado: {addressWallets.Where(x => x.Address == _puzzle.Address).First().ToString()}");
+            //throw new Exception($"Endereço encontrado: {addressWallets.Where(x => x.Address == _puzzle.Address).First().ToString()}");
 
             block.IsCompleted = true;
 

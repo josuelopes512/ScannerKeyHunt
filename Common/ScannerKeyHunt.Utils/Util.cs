@@ -5,7 +5,6 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace ScannerKeyHunt.Utils
@@ -865,7 +864,7 @@ namespace ScannerKeyHunt.Utils
                     RequestFormat = DataFormat.Json
                 };
 
-                if(!string.IsNullOrEmpty(data))
+                if (!string.IsNullOrEmpty(data))
                     request.AddJsonBody(data);
 
                 var response = _client.ExecuteAsync(request).Result;
